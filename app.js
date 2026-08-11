@@ -2,6 +2,8 @@ const express = require('express');
 const app = express();
 const port = 3000;
 
+app.disable('x-powered-by');
+
 require('dotenv').config();
 
 const employeeRoute = require('./routes/employeeRoutes');

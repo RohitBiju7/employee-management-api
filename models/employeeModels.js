@@ -33,7 +33,7 @@ const employeeSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    match: [/^\S+@\S+\.\S+$/, "Please enter a valid email address"],
+    match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Please enter a valid email address"],
   },
 
   phone: {

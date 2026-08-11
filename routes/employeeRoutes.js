@@ -2,6 +2,51 @@ const express = require("express");
 const router = express.Router();
 const employeeModel = require("../models/employeeModels");
 
+// Helper function to handle duplicate key errors
+function handleDuplicateKeyError(error, res) {
+  if (error.keyPattern?.employeeId) {
+    return res.status(400).json({ message: "Employee ID already exists" });
+  }
+  if (error.keyPattern?.email) {
+    return res.status(400).json({ message: "Email already registered" });
+  }
+  return false;
+}
+
+// Custom error messages for Mongoose validation fields
+const validationMessages = {
+  employeeId: "Employee ID is required",
+  fullName: "Name must contain at least 3 characters",
+  department: "Department is required",
+  designation: "Designation is required",
+  salary: "Salary must be at least ₹15000",
+  email: "Enter a valid email address",
+  phone: "Invalid phone number",
+  joiningDate: "Joining date is required",
+  status: "Invalid employee status",
+};
+
+// Helper function to handle Mongoose validation errors
+function handleValidationError(error, res) {
+  for (const field in error.errors) {
+    if (validationMessages[field]) {
+      return res.status(400).json({ message: validationMessages[field] });
+    }
+  }
+  return false;
+}
+
+// Centralized error responder
+function handleRouteError(error, res) {
+  if (error.code === 11000 && handleDuplicateKeyError(error, res)) {
+    return;
+  }
+  if (error.name === "ValidationError" && handleValidationError(error, res)) {
+    return;
+  }
+  res.status(400).json({ message: error.message });
+}
+
 // get all employees
 router.get("/", async (req, res) => {
   try {
@@ -14,31 +59,8 @@ router.get("/", async (req, res) => {
 
 // add a new employee
 router.post("/", async (req, res) => {
-  const {
-    employeeId,
-    fullName,
-    department,
-    designation,
-    salary,
-    email,
-    phone,
-    joiningDate,
-    status,
-  } = req.body;
-
-  const employee = new employeeModel({
-    employeeId,
-    fullName,
-    department,
-    designation,
-    salary,
-    email,
-    phone,
-    joiningDate,
-    status,
-  });
-
   try {
+    const employee = new employeeModel(req.body);
     const savedEmployee = await employee.save();
 
     res.status(201).json({
@@ -46,70 +68,7 @@ router.post("/", async (req, res) => {
       employee: savedEmployee,
     });
   } catch (error) {
-    // Duplicate employeeId or email
-    if (error.code === 11000) {
-      if (error.keyPattern.employeeId) {
-        return res.status(400).json({
-          message: "Employee ID already exists",
-        });
-      }
-
-      if (error.keyPattern.email) {
-        return res.status(400).json({
-          message: "Email already registered",
-        });
-      }
-    }
-
-    // Mongoose validation errors
-    if (error.name === "ValidationError") {
-      if (error.errors.employeeId) {
-        return res.status(400).json({
-          message: "Employee ID is required",
-        });
-      }
-
-      if (error.errors.fullName) {
-        return res.status(400).json({
-          message: "Name must contain at least 3 characters",
-        });
-      }
-
-      if (error.errors.department) {
-        return res.status(400).json({
-          message: "Department is required",
-        });
-      }
-
-      if (error.errors.salary) {
-        return res.status(400).json({
-          message: "Salary must be at least ₹15000",
-        });
-      }
-
-      if (error.errors.email) {
-        return res.status(400).json({
-          message: "Enter a valid email address",
-        });
-      }
-
-      if (error.errors.phone) {
-        return res.status(400).json({
-          message: "Invalid phone number",
-        });
-      }
-
-      if (error.errors.status) {
-        return res.status(400).json({
-          message: "Invalid employee status",
-        });
-      }
-    }
-
-    // Other errors
-    res.status(400).json({
-      message: error.message,
-    });
+    handleRouteError(error, res);
   }
 });
 
@@ -121,16 +80,12 @@ router.get("/:employeeId", async (req, res) => {
     });
 
     if (!employee) {
-      return res.status(404).json({
-        message: "Employee not found",
-      });
+      return res.status(404).json({ message: "Employee not found" });
     }
 
     res.json(employee);
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(500).json({ message: error.message });
   }
 });
 
@@ -143,13 +98,11 @@ router.put("/:employeeId", async (req, res) => {
       {
         new: true,
         runValidators: true,
-      },
+      }
     );
 
     if (!updatedEmployee) {
-      return res.status(404).json({
-        message: "Employee not found",
-      });
+      return res.status(404).json({ message: "Employee not found" });
     }
 
     res.json({
@@ -157,81 +110,7 @@ router.put("/:employeeId", async (req, res) => {
       employee: updatedEmployee,
     });
   } catch (error) {
-    // Duplicate employeeId or email
-    if (error.code === 11000) {
-      if (error.keyPattern.employeeId) {
-        return res.status(400).json({
-          message: "Employee ID already exists",
-        });
-      }
-
-      if (error.keyPattern.email) {
-        return res.status(400).json({
-          message: "Email already registered",
-        });
-      }
-    }
-
-    // Mongoose validation errors
-    if (error.name === "ValidationError") {
-      if (error.errors.employeeId) {
-        return res.status(400).json({
-          message: "Employee ID is required",
-        });
-      }
-
-      if (error.errors.fullName) {
-        return res.status(400).json({
-          message: "Name must contain at least 3 characters",
-        });
-      }
-
-      if (error.errors.department) {
-        return res.status(400).json({
-          message: "Department is required",
-        });
-      }
-
-      if (error.errors.designation) {
-        return res.status(400).json({
-          message: "Designation is required",
-        });
-      }
-
-      if (error.errors.salary) {
-        return res.status(400).json({
-          message: "Salary must be at least ₹15000",
-        });
-      }
-
-      if (error.errors.email) {
-        return res.status(400).json({
-          message: "Enter a valid email address",
-        });
-      }
-
-      if (error.errors.phone) {
-        return res.status(400).json({
-          message: "Invalid phone number",
-        });
-      }
-
-      if (error.errors.joiningDate) {
-        return res.status(400).json({
-          message: "Joining date is required",
-        });
-      }
-
-      if (error.errors.status) {
-        return res.status(400).json({
-          message: "Invalid employee status",
-        });
-      }
-    }
-
-    res.status(400).json({
-      message: error.message,
-    });
+    handleRouteError(error, res);
   }
 });
 
@@ -239,12 +118,7 @@ router.put("/:employeeId", async (req, res) => {
 router.delete("/:employeeId", async (req, res) => {
   try {
     const deletedEmployee = await employeeModel.findOneAndDelete(
-      { employeeId: req.params.employeeId },
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      },
+      { employeeId: req.params.employeeId }
     );
 
     if (!deletedEmployee) {
